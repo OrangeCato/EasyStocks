@@ -14,17 +14,29 @@ load_dotenv()
 
 app = FastAPI(title="EasyStonks API")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+# ---------------- CORS (PRODUCTION READY) ----------------
+# Set this in Render:
+# ALLOWED_ORIGINS="https://alessandrazamora.github.io,http://localhost:5173"
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").strip()
+
+if ALLOWED_ORIGINS:
+    origins = [o.strip().rstrip("/") for o in ALLOWED_ORIGINS.split(",") if o.strip()]
+else:
+    # Safe dev defaults
+    origins = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-    ],
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ---------------- CoinMarketCap ----------------
 BASE_URL = "https://pro-api.coinmarketcap.com"
 API_KEY = os.getenv("COINMARKETCAP_API_KEY")
 CURRENCY = os.getenv("CMC_CURRENCY", "USD")
@@ -36,11 +48,23 @@ def cmc_headers():
     return {"X-CMC_PRO_API_KEY": API_KEY}
 
 
+# ---------------- Health / Debug ----------------
 @app.get("/api/health")
 def health():
     return {"ok": True}
 
+@app.get("/api/info")
+def info():
+    # Helpful for verifying Render env + CORS config (no secrets exposed)
+    return {
+        "ok": True,
+        "currency_default": CURRENCY,
+        "cors_origins": origins,
+        "has_cmc_key": bool(API_KEY),
+    }
 
+
+# ---------------- Metrics ----------------
 @app.get("/api/global")
 def global_metrics(convert: str = None):
     currency = convert or CURRENCY
@@ -88,9 +112,7 @@ def _fetch_quotes(symbols: List[str], currency: str) -> Dict[str, dict]:
     except requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"CMC request failed: {e}")
 
-    # If CMC returns an error (401/429/etc), surface it cleanly
     if r.status_code != 200:
-        # try to decode json error message, fall back to text
         try:
             payload = r.json()
             msg = payload.get("status", {}).get("error_message") or payload.get("message") or r.text
@@ -105,14 +127,14 @@ def _fetch_quotes(symbols: List[str], currency: str) -> Dict[str, dict]:
 
     data = payload.get("data")
 
-    # ✅ IMPORTANT: sometimes 'data' is None or not a dict when CMC errors/weirdness happens
     if not isinstance(data, dict):
         raise HTTPException(
             status_code=502,
-            detail=f"Unexpected CMC response shape. data_type={type(data).__name__}"
+            detail=f"Unexpected CMC response shape. data_type={type(data).__name__}",
         )
 
     return {k.upper(): v for k, v in data.items()}
+
 
 @app.get("/api/quote")
 def quote_latest(symbol: str, convert: str = None):
@@ -137,6 +159,7 @@ def quote_latest(symbol: str, convert: str = None):
         "market_cap": quote.get("market_cap"),
         "last_updated": quote.get("last_updated"),
     }
+
 
 @app.get("/api/quotes")
 def quotes_latest(symbols: str, convert: str = None):
@@ -171,8 +194,7 @@ def quotes_latest(symbols: str, convert: str = None):
     return {"currency": currency, "data": out}
 
 
-# ---------- ALERTS ----------
-
+# ---------------- ALERTS ----------------
 AlertType = Literal["pct24", "price"]
 AlertOp = Literal[">", "<"]
 
@@ -186,6 +208,7 @@ class AlertCreate(BaseModel):
 
 class AlertOut(AlertCreate):
     id: str
+
 
 def _normalize_alert(a: dict) -> Optional[dict]:
     """
@@ -203,14 +226,12 @@ def _normalize_alert(a: dict) -> Optional[dict]:
     op = a.get("op")
     value = a.get("value")
 
-    # Handle old types like "pct24_above", "pct24_below", "price_above", ...
     if isinstance(a_type, str) and "_" in a_type and (op is None):
-        base, direction = a_type.rsplit("_", 1)  # e.g. pct24 + above
+        base, direction = a_type.rsplit("_", 1)
         if base in ("pct24", "price") and direction in ("above", "below"):
             a_type = base
             op = ">" if direction == "above" else "<"
 
-    # Validate normalized result
     if a_type not in ("pct24", "price"):
         return None
     if op not in (">", "<"):
@@ -229,13 +250,13 @@ def _normalize_alert(a: dict) -> Optional[dict]:
         "value": value,
     }
 
+
 def _evaluate_alert(alert: dict, quote: dict) -> Optional[dict]:
     symbol = (alert.get("symbol") or "").upper().strip()
     a_type = alert.get("type")
     op = alert.get("op")
     threshold = alert.get("value")
 
-    # Defensive casting
     try:
         threshold = float(threshold)
     except Exception:
@@ -247,18 +268,17 @@ def _evaluate_alert(alert: dict, quote: dict) -> Optional[dict]:
     if a_type == "price":
         current = price
         label = "price"
-        unit = ""  # USD shown elsewhere
+        unit = ""
     elif a_type == "pct24":
         current = pct24
         label = "24h %"
-        unit="%"
+        unit = "%"
     else:
         return None
 
     if current is None:
         return None
 
-    # Defensive casting (prevents `:.2f` crash)
     try:
         current = float(current)
     except Exception:
@@ -279,6 +299,7 @@ def _evaluate_alert(alert: dict, quote: dict) -> Optional[dict]:
         "value": threshold,
         "id": alert.get("id"),
     }
+
 
 @app.get("/api/alerts", response_model=List[AlertOut])
 def get_alerts():
@@ -310,7 +331,6 @@ def check_alerts(convert: str = None):
     symbols = sorted({a["symbol"].upper().strip() for a in alerts if a.get("symbol")})
     quotes_map = _fetch_quotes(symbols, currency)
 
-    # Build simplified quote dict keyed by symbol
     simplified = {}
     for sym, q in quotes_map.items():
         quote = q.get("quote", {}).get(currency, {})
