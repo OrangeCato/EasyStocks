@@ -1,0 +1,14 @@
+{
+    "meta": {
+      "generated_at": "2026-02-23T18:00:00Z",
+      "source": "CoinMarketCap",
+      "notes": "Demo data"
+    },
+    "rankings": [
+      { "symbol": "BTC", "score": 92, "volatility": "high", "change_24h": "+2.1%", "reason": "Strong momentum" },
+      { "symbol": "ETH", "score": 84, "volatility": "med", "change_24h": "+1.2%", "reason": "Breakout watch" }
+    ],
+    "alerts": [
+      { "time": "18:02", "symbol": "BTC", "type": "volatility", "message": "Volatility spiked above threshold" }
+    ]
+  }

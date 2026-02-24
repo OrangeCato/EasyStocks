@@ -2,3 +2,4 @@
 Projects/HistoricalData/
 venv/
 var.env
+backend/.env

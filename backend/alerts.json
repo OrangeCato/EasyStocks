@@ -1,0 +1,23 @@
+[
+  {
+    "id": "50be0503ea",
+    "symbol": "BTC",
+    "type": "pct24",
+    "op": ">",
+    "value": 2.0
+  },
+  {
+    "id": "f6eb80f8ab",
+    "symbol": "ETH",
+    "type": "price",
+    "op": "<",
+    "value": 2500.0
+  },
+  {
+    "id": "f6e1aa071c",
+    "symbol": "TAO",
+    "type": "pct24",
+    "op": ">",
+    "value": 5.0
+  }
+]
