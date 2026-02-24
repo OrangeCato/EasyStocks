@@ -3,3 +3,4 @@ Projects/HistoricalData/
 venv/
 var.env
 backend/.env
+node_modules
