@@ -1,0 +1,5 @@
+.DS_Store
+Projects/HistoricalData/
+venv/
+var.env
+backend/.env
