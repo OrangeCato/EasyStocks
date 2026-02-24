@@ -5,7 +5,7 @@ export default function QuoteSearch() {
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
 
-  const API = import.meta.env.VITE_API_URL;
+  const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
   async function handleSearch(e) {
     e.preventDefault();
