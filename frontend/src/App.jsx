@@ -6,6 +6,7 @@ import GlobalMetrics from "./components/GlobalMetrics";
 import QuoteSearch from "./components/QuoteSearch";
 import AlertManager from "./components/AlertManager";
 import { buildRankingsFromListings } from "./lib/signals";
+import TopNotice from "./components/TopNotice";
 
 // ---------------- UI helpers ----------------
 
@@ -121,7 +122,7 @@ function makeBeepPlayer() {
   function ensureCtx() {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!ctx) ctx = new AudioCtx();
-    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    if (ctx.state === "suspended") ctx.resume().catch(() => { });
     return ctx;
   }
 
@@ -370,6 +371,9 @@ export default function App() {
       </div>
 
       <div style={{ maxWidth: 980, margin: "0 auto", padding: 20 }}>
+        <>
+          <TopNotice />
+        </>
         <header
           style={{
             display: "flex",
