@@ -1,22 +1,30 @@
 import { useEffect, useState } from "react";
 
-const KEY = "demo_notice_dismissed_v1";
+// Bump version so it shows again even if you dismissed v1 before
+const KEY = "demo_notice_dismissed_v2";
 
-export default function TopNotice() {
-  const [hidden, setHidden] = useState(true);
+export default function TopNotice({ onVisibilityChange }) {
+  // Initialize immediately from localStorage (prevents flicker and “doesn’t show” confusion)
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(KEY) === "1";
-    setHidden(dismissed);
-  }, []);
+    onVisibilityChange?.(!hidden);
+  }, [hidden, onVisibilityChange]);
 
   if (hidden) return null;
 
   return (
     <div
       style={{
-        position: "sticky",
+        position: "fixed",
         top: 0,
+        left: 0,
         zIndex: 9999,
         width: "100%",
         background: "rgba(0,0,0,0.85)",
@@ -45,7 +53,9 @@ export default function TopNotice() {
 
         <button
           onClick={() => {
-            localStorage.setItem(KEY, "1");
+            try {
+              localStorage.setItem(KEY, "1");
+            } catch {}
             setHidden(true);
           }}
           style={{

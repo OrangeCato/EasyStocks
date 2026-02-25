@@ -90,8 +90,6 @@ function Table({ columns, rows, rowClassName }) {
 // ---------------- Toast helpers ----------------
 
 function toastToneClass(alert) {
-  // You can tweak mapping later:
-  // op ">" -> green, "<" -> red
   if (alert?.op === ">") return "green";
   if (alert?.op === "<") return "red";
   return "blue";
@@ -122,7 +120,7 @@ function makeBeepPlayer() {
   function ensureCtx() {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!ctx) ctx = new AudioCtx();
-    if (ctx.state === "suspended") ctx.resume().catch(() => { });
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
     return ctx;
   }
 
@@ -193,20 +191,20 @@ export default function App() {
   const [alerts, setAlerts] = useState([]);
   const [alertsErr, setAlertsErr] = useState("");
 
-  // ✅ default ON (still needs one user click to unlock audio in most browsers)
   const [soundOn, setSoundOn] = useState(true);
   const [needsAudioClick, setNeedsAudioClick] = useState(true);
 
-  // Toasts + row highlight
   const [toasts, setToasts] = useState([]);
   const [flashIds, setFlashIds] = useState(() => new Set());
 
-  // cooldown so it doesn’t spam
-  const lastPlayedAtRef = useRef(new Map()); // id -> timestamp ms
+  const lastPlayedAtRef = useRef(new Map());
   const COOLDOWN_MS = 2 * 60 * 1000;
 
   const audioRef = useRef(null);
   if (!audioRef.current) audioRef.current = makeBeepPlayer();
+
+  // ✅ Notice visibility (controls spacer)
+  const [noticeVisible, setNoticeVisible] = useState(false);
 
   // ---- Load listings ----
   useEffect(() => {
@@ -264,7 +262,7 @@ export default function App() {
     }, 2500);
   }
 
-  // ---- Load triggered alerts + sound/toast/flash for newly triggered ----
+  // ---- Load triggered alerts ----
   useEffect(() => {
     let cancelled = false;
 
@@ -291,16 +289,14 @@ export default function App() {
         }
 
         if (newlyTriggered.length > 0) {
-          // Visual explanation
           newlyTriggered.forEach((a) => {
             pushToast(a);
             flashRow(a._stableId);
           });
 
-          // Audio
           if (soundOn) {
             try {
-              audioRef.current.ensureCtx(); // might throw if blocked
+              audioRef.current.ensureCtx();
               setNeedsAudioClick(false);
               newlyTriggered.forEach((a, i) => {
                 setTimeout(() => audioRef.current.playAlertSound(a), i * 220);
@@ -311,7 +307,6 @@ export default function App() {
           }
         }
 
-        // Attach stable ids so we can flash the row even if backend id missing
         const withStableIds = triggered.map((a) => ({
           ...a,
           _stableId: a.id || `${a.symbol}-${a.type}-${a.op}-${a.value}`,
@@ -340,7 +335,6 @@ export default function App() {
     <button
       className="es-btn"
       onClick={() => {
-        // click unlocks audio on most browsers
         try {
           audioRef.current.ensureCtx();
           setNeedsAudioClick(false);
@@ -357,6 +351,9 @@ export default function App() {
 
   return (
     <div className="es-app">
+      <TopNotice onVisibilityChange={setNoticeVisible} />
+      {noticeVisible && <div style={{ height: 48 }} />}
+
       {/* Toasts */}
       <div className="es-toast-wrap">
         {toasts.map((t) => (
@@ -371,9 +368,6 @@ export default function App() {
       </div>
 
       <div style={{ maxWidth: 980, margin: "0 auto", padding: 20 }}>
-        <>
-          <TopNotice />
-        </>
         <header
           style={{
             display: "flex",
@@ -392,18 +386,12 @@ export default function App() {
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {soundButton}
-            <a
-              className="es-btn"
-              href="https://github.com/OrangeCato/EasyStonks"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <a className="es-btn" href="https://github.com/OrangeCato/EasyStonks" target="_blank" rel="noreferrer">
               View GitHub →
             </a>
           </div>
         </header>
 
-        {/* Audio unlock hint */}
         {soundOn && needsAudioClick && (
           <div className="es-card" style={{ marginBottom: 12 }}>
             <div style={{ fontWeight: 900, marginBottom: 6 }}>Enable alert audio</div>
@@ -470,13 +458,7 @@ export default function App() {
 
           <Card
             title="Triggered Alerts (live)"
-            right={
-              alerts.length ? (
-                <span className="es-pill red">{alerts.length} active</span>
-              ) : (
-                <span className="es-muted">none</span>
-              )
-            }
+            right={alerts.length ? <span className="es-pill red">{alerts.length} active</span> : <span className="es-muted">none</span>}
           >
             {alerts.length === 0 ? (
               <div style={{ opacity: 0.75 }}>No alerts triggered right now.</div>
